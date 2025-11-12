@@ -65,6 +65,7 @@ Sistema end-to-end que:
 # - acceleration
 # - heading_change
 # - traffic_conditions
+
 Impacto:
 
 Imposibilidad de analizar congestión vehicular
@@ -120,7 +121,9 @@ def calculate_speed(row1, row2):
 ✅ Considera curvatura de la Tierra
 ✅ Computacionalmente eficiente (O(1))
 ✅ No requiere APIs externas
+
 3. Arquitectura del Sistema
+
 Diagrama de Componentes
 ┌─────────────────────────────────────────────────────────────┐
 │                     API 511.org                             │
@@ -166,6 +169,7 @@ Diagrama de Componentes
               │  Streamlit     │
               │    (07)        │
               └────────────────┘
+
 Stack Tecnológico Completo
 Componente	Tecnología	Versión	Justificación
 Lenguaje	Python	3.9+	Ecosistema ML maduro
@@ -178,8 +182,11 @@ Visualización	Plotly	5.16+	Gráficos interactivos web
 Dashboard	Streamlit	1.28+	Desarrollo rápido, reactivo
 Mapas	Plotly Mapbox	-	Visualización geoespacial
 Serialización	Joblib	1.3+	Persistencia de modelos ML
+
 4. Pipeline Completo
+
 4.1 Ingesta de Datos (01_data_ingestion_511.py)
+
 Flujo de ejecución:
 1. Configuración:
    - API_KEY = "tu_clave_511"
@@ -198,18 +205,22 @@ Flujo de ejecución:
        e. Bulk INSERT a PostgreSQL (batch 1000)
        f. Log estadísticas
        g. Sleep 30s
+
 Optimizaciones implementadas:
 
 ✅ Connection pooling: Reutiliza conexiones DB
 ✅ Bulk inserts: 10x más rápido que inserts individuales
 ✅ Error handling: Reintentos automáticos (3 intentos)
 ✅ Logging: Rotación diaria de logs
+
 Métricas de rendimiento:
 Throughput: ~1,140 registros/30s = 38 registros/segundo
 Latencia API: ~200-500 ms promedio
 DB Insert time: ~50-100 ms (bulk 1000)
+
 4.2 Análisis Exploratorio (02_exploratory_analysis.py)
 Visualizaciones generadas:
+
 #	Gráfico	Insight Clave
 1	Distribución de velocidades	45.2% vehículos detenidos (0 km/h)
 2	Actividad por hora	Pico 8-9 AM y 5-6 PM (rush hour)
@@ -217,6 +228,7 @@ Visualizaciones generadas:
 4	Heatmap de rutas	Rutas 1, 14, 38 más activas
 5	Velocidad por agencia	AC Transit: 12.4 km/h (más rápido)
 6	Velocidad en el tiempo	Caídas en horas pico
+
 Estadísticas descriptivas:
 Speed Statistics:
 ├── Mean:    9.69 km/h
@@ -233,6 +245,7 @@ Vehicle Distribution:
 ├── SF Muni:   776 (68.1%)
 ├── AC Transit: 289 (25.4%)
 └── Caltrain:   75 (6.5%)
+
 4.3 Feature Engineering (03_data_preprocessing.py)
 Proceso de transformación:
 INPUT (11 columnas):
@@ -935,13 +948,9 @@ Fecha de creación: 2025-11-12
 Versión: 1.0.0
 
 Licencia: MIT
-Repositorio: https://github.com/FNarvaezmo/San-Francisco-transit EOF
+Repositorio: https://github.com/FNarvaezmo/San-Francisco-transit 
 
 ---
 
-## **Agregar, commit y push:**
 
-```bash
-git add DOCUMENTATION.md
-git commit -m "📖 Add comprehensive technical documentation"
-git push origin main
+
