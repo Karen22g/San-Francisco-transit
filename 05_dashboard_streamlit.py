@@ -65,23 +65,27 @@ def haversine(lat1, lon1, lat2, lon2):
 @st.cache_data(ttl=30)
 def get_realtime_data(hours=1):
     """Obtener datos en tiempo real"""
-    conn = psycopg2.connect(**DB_CONFIG)
-    query = f"""
-        SELECT 
-            vehicle_id,
-            route_id,
-            agency_id,
-            latitude,
-            longitude,
-            heading,
-            timestamp
-        FROM vehicle_positions
-        WHERE timestamp > NOW() - INTERVAL '{hours} hours'
-        ORDER BY timestamp DESC
-    """
-    df = pd.read_sql(query, conn)
-    conn.close()
-    return df
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        query = f"""
+            SELECT 
+                vehicle_id,
+                route_id,
+                agency_id,
+                latitude,
+                longitude,
+                heading,
+                timestamp
+            FROM vehicle_positions
+            WHERE timestamp > NOW() - INTERVAL '{hours} hours'
+            ORDER BY timestamp DESC
+        """
+        df = pd.read_sql(query, conn)
+        conn.close()
+        return df
+    except Exception as e:
+        st.error(f"Error al conectar a la base de datos: {e}")
+        return pd.DataFrame()
 
 def calculate_speed_features(df):
     """Calcular features de velocidad para predicción"""
@@ -166,7 +170,7 @@ def render_metrics(df):
     with col3:
         st.metric(
             label="🛣️ Rutas Activas",
-            value=f"{df['route_id'].nunique():,}"
+            value=f"{df['route_id'].notna().sum():,}"
         )
     
     with col4:
@@ -181,6 +185,10 @@ def render_map(df):
     
     # Tomar último registro de cada vehículo
     df_latest = df.sort_values('timestamp').groupby('vehicle_id').tail(1)
+    
+    if len(df_latest) == 0:
+        st.warning("No hay datos para mostrar en el mapa")
+        return
     
     # Crear mapa
     fig = px.scatter_mapbox(
@@ -281,7 +289,14 @@ def render_route_comparison(df):
     """Comparación de rutas"""
     st.subheader("🛣️ Comparación de Rutas (Top 10)")
     
-    route_stats = df.groupby('route_id').agg({
+    # Filtrar solo rutas válidas
+    df_valid = df[df['route_id'].notna()].copy()
+    
+    if len(df_valid) == 0:
+        st.warning("No hay rutas disponibles para comparar")
+        return
+    
+    route_stats = df_valid.groupby('route_id').agg({
         'predicted_speed': ['mean', 'count'],
         'vehicle_id': 'nunique'
     }).reset_index()
@@ -292,7 +307,7 @@ def render_route_comparison(df):
     fig = go.Figure()
     
     fig.add_trace(go.Bar(
-        x=route_stats['route_id'],
+        x=route_stats['route_id'].astype(str),
         y=route_stats['avg_speed'],
         marker_color='lightblue',
         text=route_stats['vehicles'],
@@ -311,6 +326,10 @@ def render_route_comparison(df):
 def render_heatmap_by_zone(df):
     """Mapa de calor por zona"""
     st.subheader("🔥 Mapa de Calor - Velocidad por Zona")
+    
+    if len(df) == 0:
+        st.warning("No hay datos para mostrar en el mapa de calor")
+        return
     
     fig = px.density_mapbox(
         df,
@@ -333,24 +352,31 @@ def render_sidebar_filters(df):
     """Sidebar con filtros"""
     st.sidebar.header("🔧 Filtros")
     
+    # Limpiar datos nulos en route_id antes de filtrar
+    df = df.copy()
+    
     # Filtro de agencia
-    agencies = ['Todas'] + sorted(df['agency_id'].unique().tolist())
+    agencies = ['Todas'] + sorted(df['agency_id'].dropna().unique().tolist())
     selected_agency = st.sidebar.selectbox("Agencia", agencies)
     
-    # Filtro de ruta
+    # Filtro de ruta (manejar valores nulos)
     if selected_agency != 'Todas':
-        routes = ['Todas'] + sorted(df[df['agency_id'] == selected_agency]['route_id'].unique().tolist())
+        # Filtrar por agencia primero
+        routes_list = df[df['agency_id'] == selected_agency]['route_id'].dropna().unique().tolist()
     else:
-        routes = ['Todas'] + sorted(df['route_id'].unique().tolist())
+        routes_list = df['route_id'].dropna().unique().tolist()
     
+    # Ordenar y agregar 'Todas'
+    routes = ['Todas'] + sorted([str(r) for r in routes_list if r])
     selected_route = st.sidebar.selectbox("Ruta", routes)
     
     # Filtro de velocidad
+    max_speed = int(df['predicted_speed'].max()) if df['predicted_speed'].max() > 0 else 100
     speed_range = st.sidebar.slider(
         "Rango de Velocidad (km/h)",
         min_value=0,
-        max_value=int(df['predicted_speed'].max()),
-        value=(0, int(df['predicted_speed'].max()))
+        max_value=max_speed,
+        value=(0, max_speed)
     )
     
     # Aplicar filtros
@@ -360,7 +386,7 @@ def render_sidebar_filters(df):
         filtered_df = filtered_df[filtered_df['agency_id'] == selected_agency]
     
     if selected_route != 'Todas':
-        filtered_df = filtered_df[filtered_df['route_id'] == selected_route]
+        filtered_df = filtered_df[filtered_df['route_id'].astype(str) == selected_route]
     
     filtered_df = filtered_df[
         (filtered_df['predicted_speed'] >= speed_range[0]) &
@@ -380,11 +406,9 @@ def render_sidebar_filters(df):
 def render_data_table(df):
     """Tabla de datos"""
     with st.expander("📋 Ver Datos Detallados"):
-        st.dataframe(
-            df[['vehicle_id', 'route_id', 'agency_id', 'predicted_speed', 
-                'latitude', 'longitude', 'timestamp']].head(100),
-            use_container_width=True
-        )
+        display_df = df[['vehicle_id', 'route_id', 'agency_id', 'predicted_speed', 
+                         'latitude', 'longitude', 'timestamp']].head(100)
+        st.dataframe(display_df, use_container_width=True)
 
 # ============================================================================
 # MAIN
@@ -406,6 +430,7 @@ def main():
         
         if df.empty:
             st.error("❌ No hay datos disponibles. Ejecuta 01_data_ingestion_511.py primero.")
+            st.info("💡 Tip: Ejecuta `python 01_data_ingestion_511.py` en otra terminal para comenzar a recolectar datos.")
             return
         
         # Calcular features y predecir
@@ -414,6 +439,10 @@ def main():
     
     # Sidebar con filtros
     filtered_df = render_sidebar_filters(df)
+    
+    if len(filtered_df) == 0:
+        st.warning("⚠️ No hay datos que coincidan con los filtros seleccionados.")
+        return
     
     # Métricas principales
     render_metrics(filtered_df)
