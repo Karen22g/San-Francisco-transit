@@ -29,9 +29,10 @@ st.set_page_config(
 )
 
 DB_CONFIG = {
-    'host': 'localhost',
+    'host': 'karenserver.postgres.database.azure.com',
     'database': 'transit_streaming',
-    'user': 'pachonarvaez',
+    'user': 'admin_karen',
+    'password': 'Tiendala60',
     'port': 5432
 }
 
@@ -68,7 +69,7 @@ def haversine(lat1, lon1, lat2, lon2):
     return R * c
 
 @st.cache_data(ttl=30)
-def get_realtime_data(hours=1):
+def get_realtime_data(hours=0.1):
     """Obtener datos en tiempo real"""
     try:
         conn = psycopg2.connect(**DB_CONFIG)
@@ -80,10 +81,10 @@ def get_realtime_data(hours=1):
                 latitude,
                 longitude,
                 heading,
-                timestamp
+                created_at
             FROM vehicle_positions
-            WHERE timestamp > NOW() - INTERVAL '{hours} hours'
-            ORDER BY timestamp DESC
+            WHERE created_at > NOW() - INTERVAL '{hours} hours'
+            ORDER BY created_at DESC
         """
         df = pd.read_sql(query, conn)
         conn.close()
@@ -105,11 +106,11 @@ def get_vehicle_history(vehicle_id, hours=1):
                 latitude,
                 longitude,
                 heading,
-                timestamp
+                created_at
             FROM vehicle_positions
             WHERE vehicle_id = %s
-              AND timestamp > NOW() - INTERVAL '{hours} hours'
-            ORDER BY timestamp DESC
+              AND created_at > NOW() - INTERVAL '{hours} hours'
+            ORDER BY created_at DESC
         """
         df = pd.read_sql(query, conn, params=(vehicle_id,))
         conn.close()
@@ -120,9 +121,9 @@ def get_vehicle_history(vehicle_id, hours=1):
 def calculate_features(df):
     """Calcular features para predicción"""
     df = df.copy()
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
-    df['hour'] = df['timestamp'].dt.hour
-    df['day_of_week'] = df['timestamp'].dt.dayofweek
+    df['created_at'] = pd.to_datetime(df['created_at'])
+    df['hour'] = df['created_at'].dt.hour
+    df['day_of_week'] = df['created_at'].dt.dayofweek
     df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
     df['is_rush_hour'] = (
         ((df['hour'] >= 7) & (df['hour'] <= 9)) |
@@ -138,9 +139,12 @@ def calculate_features(df):
 def predict_speed(df, model, scaler):
     """Predecir velocidad"""
     if model is None:
-        df['predicted_speed'] = np.random.uniform(10, 25, len(df))
-        return df
-    
+       #print("warning: Usando predicciones por defecto")
+       df['predicted_speed'] = np.random.uniform(10, 25, len(df))
+       return df
+    #print("info: Usando modelo para predicciones")
+
+    print(df.columns.tolist())
     feature_cols = [
         'hour', 'day_of_week', 'is_weekend', 'is_rush_hour',
         'latitude', 'longitude', 'distance_to_center', 'heading'
@@ -152,10 +156,17 @@ def predict_speed(df, model, scaler):
     
     X = df[feature_cols].fillna(0)
     
+    #print("Tipo de modelo:", type(model))
+    print("Columnas esperadas por el modelo:", model.feature_names_in_)
+    print("Columnas usadas ahora:", X.columns.tolist()) 
+
     try:
         predictions = model.predict(X)
+        #print("predicción generada es", predictions)
         df['predicted_speed'] = predictions
-    except:
+    except Exception as e:
+        print("❌ Error en la predicción:", e)
+        #print("predicción generada es", 20)
         df['predicted_speed'] = 20
     
     return df
@@ -165,7 +176,7 @@ def calculate_actual_speed(df):
     if len(df) < 2:
         return None
     
-    df = df.sort_values('timestamp')
+    df = df.sort_values('created_at')
     last = df.iloc[-1]
     prev = df.iloc[-2]
     
@@ -174,7 +185,7 @@ def calculate_actual_speed(df):
         last['latitude'], last['longitude']
     )
     
-    time_diff = (last['timestamp'] - prev['timestamp']).total_seconds()
+    time_diff = (last['created_at'] - prev['created_at']).total_seconds()
     
     if time_diff > 0:
         speed = (distance / time_diff) * 3600
@@ -403,7 +414,7 @@ def render_map_with_alerts(df):
     st.subheader("🗺️ Mapa con Sistema de Alertas")
     
     # Tomar último registro de cada vehículo
-    df_latest = df.sort_values('timestamp').groupby('vehicle_id').tail(1)
+    df_latest = df.sort_values('created_at').groupby('vehicle_id').tail(1)
     
     if len(df_latest) == 0:
         st.warning("No hay datos para mostrar")
@@ -481,10 +492,10 @@ def render_vehicle_tracker(df):
         # Gráfico de trayectoria
         if len(history_df) > 1:
             fig = px.line_mapbox(
-                history_df.sort_values('timestamp'),
+                history_df.sort_values('created_at'),
                 lat='latitude',
                 lon='longitude',
-                hover_data=['timestamp', 'predicted_speed'],
+                hover_data=['created_at', 'predicted_speed'],
                 zoom=13,
                 height=400
             )
@@ -494,8 +505,8 @@ def render_vehicle_tracker(df):
         # Gráfico de velocidad en el tiempo
         fig2 = go.Figure()
         fig2.add_trace(go.Scatter(
-            x=history_df.sort_values('timestamp')['timestamp'],
-            y=history_df.sort_values('timestamp')['predicted_speed'],
+            x=history_df.sort_values('created_at')['created_at'],
+            y=history_df.sort_values('created_at')['predicted_speed'],
             mode='lines+markers',
             name='Velocidad Predicha'
         ))
@@ -522,7 +533,8 @@ def main():
     
     # Cargar datos
     with st.spinner("📡 Cargando datos..."):
-        df = get_realtime_data(hours=2)
+        df = get_realtime_data(hours=0.1)
+        print(df)
         
         if df.empty:
             st.error("❌ No hay datos disponibles.")

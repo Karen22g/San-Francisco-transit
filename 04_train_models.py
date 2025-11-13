@@ -55,15 +55,11 @@ def prepare_features(train_df, test_df):
     target_col = 'speed_calculated'
     
     # Features a excluir
-    exclude_cols = [
-        'vehicle_id', 'timestamp', 'speed_calculated',
-        'route_id', 'zone', 'speed_category'  # Categóricos que necesitan encoding
+    feature_cols = [
+        'hour', 'day_of_week', 'is_weekend', 'is_rush_hour',
+        'latitude', 'longitude', 'distance_to_center', 'heading'
     ]
-    
-    # Seleccionar features numéricos
-    feature_cols = [col for col in train_df.columns 
-                   if col not in exclude_cols and train_df[col].dtype in ['float64', 'int64']]
-    
+     
     X_train = train_df[feature_cols]
     y_train = train_df[target_col]
     

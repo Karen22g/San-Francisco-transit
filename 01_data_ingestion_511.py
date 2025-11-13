@@ -18,9 +18,10 @@ import io
 
 # Configuración de la base de datos PostgreSQL
 DB_CONFIG = {
-    'host': 'localhost',
+    'host': 'karenserver.postgres.database.azure.com',
     'database': 'transit_streaming',
-    'user': 'pachonarvaez',
+    'user': 'admin_karen',
+    'password': 'Tiendala60',
     'port': 5432
 }
 
