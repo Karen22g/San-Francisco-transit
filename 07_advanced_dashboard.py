@@ -518,6 +518,36 @@ def render_vehicle_tracker(df):
         )
         st.plotly_chart(fig2, use_container_width=True)
 
+def render_map_with_kde(df):
+    """Mapa con Detección de Puntos Calientes de Tráfico (KDE)"""
+    st.subheader("🗺️ Mapa con Detección de Puntos Calientes (KDE)")
+
+    # Tomar último registro de cada vehículo
+    df_latest = df.sort_values('created_at').groupby('vehicle_id').tail(1)
+
+    if len(df_latest) == 0:
+        st.warning("No hay datos para mostrar")
+        return
+
+    # Crear mapa con densidad KDE
+    fig = px.density_mapbox(
+        df_latest,
+        lat="latitude",
+        lon="longitude",
+        z="predicted_speed",  # se usa como peso
+        radius=15,  # controla el suavizado del KDE
+        hover_data=["vehicle_id", "route_id", "agency_id", "predicted_speed", "alert_message"],
+        center={"lat": SF_CENTER_LAT, "lon": SF_CENTER_LON},
+        zoom=11,
+        mapbox_style="carto-positron",
+        height=600,
+        color_continuous_scale="YlOrRd",
+        title="Mapa de densidad de tráfico (KDE)"
+    )
+
+    fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+
+    st.plotly_chart(fig, use_container_width=True)
 # ============================================================================
 # MAIN
 # ============================================================================
@@ -556,6 +586,8 @@ def main():
         render_alerts_panel(df)
         st.markdown("---")
         render_map_with_alerts(df)
+        st.markdown("---")
+        render_map_with_kde(df)
     
     with tab2:
         render_eta_calculator(df, model, scaler)
