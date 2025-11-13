@@ -114,6 +114,8 @@ def get_vehicle_history(vehicle_id, hours=1):
         """
         df = pd.read_sql(query, conn, params=(vehicle_id,))
         conn.close()
+
+        df.to_csv("vehicle_history.csv", index=False)
         return df
     except:
         return pd.DataFrame()
@@ -442,7 +444,7 @@ def render_map_with_alerts(df):
         size_max=15,
         zoom=11,
         center={'lat': SF_CENTER_LAT, 'lon': SF_CENTER_LON},
-        mapbox_style='open-street-map',
+        mapbox_style='carto-positron',
         height=600
     )
     
@@ -497,9 +499,9 @@ def render_vehicle_tracker(df):
                 lon='longitude',
                 hover_data=['created_at', 'predicted_speed'],
                 zoom=13,
-                height=400
+                height=600
             )
-            fig.update_layout(mapbox_style='open-street-map')
+            fig.update_layout(mapbox_style='carto-positron')
             st.plotly_chart(fig, use_container_width=True)
         
         # Gráfico de velocidad en el tiempo
