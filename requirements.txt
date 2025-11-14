@@ -1,4 +1,4 @@
-psycopg2-binary==2.9.9
+pg8000==1.31.2
 requests==2.31.0
 urllib3==2.1.0
 gtfs-realtime-bindings==1.0.0
