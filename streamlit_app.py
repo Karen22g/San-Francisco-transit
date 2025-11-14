@@ -55,7 +55,8 @@ def load_model():
         model = joblib.load('best_model.pkl')
         scaler = joblib.load('scaler.pkl')
         return model, scaler
-    except:
+    except Exception as e:
+        print(f"Error al cargar el modelo: {e}")
         return None, None
 
 def haversine(lat1, lon1, lat2, lon2):
