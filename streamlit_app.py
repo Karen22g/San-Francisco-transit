@@ -52,8 +52,8 @@ ANOMALY_THRESHOLD = 15
 def load_model():
     """Cargar modelo entrenado"""
     try:
-        model = joblib.load('models/best_model.pkl')
-        scaler = joblib.load('models/scaler.pkl')
+        model = joblib.load('best_model.pkl')
+        scaler = joblib.load('scaler.pkl')
         return model, scaler
     except:
         return None, None
@@ -73,17 +73,17 @@ def get_realtime_data(hours=0.5):
     """Obtener datos en tiempo real"""
     try:
         conn = pg8000.connect(**DB_CONFIG)
-        query = f"""
-            SELECT 
-                vehicle_id,
-                route_id,
-                agency_id,
-                latitude,
-                longitude,
-                heading,
-                created_at
+        query = """
+                SELECT 
+            vehicle_id,
+            route_id,
+            agency_id,
+            latitude,
+            longitude,
+            heading,
+            created_at
             FROM vehicle_positions
-            WHERE created_at > NOW() - INTERVAL '{hours} hours'
+            WHERE created_at > NOW() - INTERVAL %s
             ORDER BY created_at DESC
         """
         interval_str = f"{hours} hours"
