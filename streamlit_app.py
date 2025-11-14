@@ -69,27 +69,29 @@ def haversine(lat1, lon1, lat2, lon2):
     return R * c
 
 @st.cache_data(ttl=30)
-def get_realtime_data(hours=0.5):
+def get_realtime_data(hours: 0.5):
     """Obtener datos en tiempo real"""
     try:
         conn = pg8000.connect(**DB_CONFIG)
-        query = """
-                SELECT 
-            vehicle_id,
-            route_id,
-            agency_id,
-            latitude,
-            longitude,
-            heading,
-            created_at
+
+        query = f"""
+            SELECT 
+                vehicle_id,
+                route_id,
+                agency_id,
+                latitude,
+                longitude,
+                heading,
+                created_at
             FROM vehicle_positions
-            WHERE created_at > NOW() - INTERVAL %s
+            WHERE created_at > NOW() - INTERVAL '{hours} hours'
             ORDER BY created_at DESC
         """
-        interval_str = f"{hours} hours"
-        df = pd.read_sql(query, conn, params=[interval_str])
+
+        df = pd.read_sql(query, conn)
         conn.close()
         return df
+
     except Exception as e:
         st.error(f"Error al conectar: {e}")
         return pd.DataFrame()
