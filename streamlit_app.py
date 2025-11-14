@@ -5,6 +5,7 @@ Autor: Francisco Narvaez M
 Fecha: 2025-11-12
 """
 
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -50,13 +51,25 @@ ANOMALY_THRESHOLD = 15
 
 @st.cache_resource
 def load_model():
-    """Cargar modelo entrenado"""
     try:
-        model = joblib.load('best_model.pkl')
-        scaler = joblib.load('scaler.pkl')
+        # Ruta absoluta del proyecto donde corre Streamlit
+        base_path = os.path.dirname(os.path.abspath(__file__))
+
+        model_path = os.path.join(base_path, "best_model.pkl")
+        scaler_path = os.path.join(base_path, "scaler.pkl")
+
+        # Debug en UI
+        st.write("📂 Working dir:", base_path)
+        st.write("🔍 Model path:", model_path)
+        st.write("🔍 Scaler path:", scaler_path)
+
+        model = joblib.load(model_path)
+        scaler = joblib.load(scaler_path)
+
         return model, scaler
+
     except Exception as e:
-        print(f"Error al cargar el modelo: {e}")
+        st.error(f"❌ Error al cargar modelo: {e}")
         return None, None
 
 def haversine(lat1, lon1, lat2, lon2):
