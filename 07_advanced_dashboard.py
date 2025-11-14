@@ -29,10 +29,10 @@ st.set_page_config(
 )
 
 DB_CONFIG = {
-    'host': 'karenserver.postgres.database.azure.com',
+    'host': 'bigdataanalytics.postgres.database.azure.com',
     'database': 'transit_streaming',
-    'user': 'admin_karen',
-    'password': 'Tiendala60',
+    'user': 'nuevo_usuario',
+    'password': 'user',
     'port': 5432
 }
 
@@ -69,7 +69,7 @@ def haversine(lat1, lon1, lat2, lon2):
     return R * c
 
 @st.cache_data(ttl=30)
-def get_realtime_data(hours=0.1):
+def get_realtime_data(hours=0.5):
     """Obtener datos en tiempo real"""
     try:
         conn = psycopg2.connect(**DB_CONFIG)
@@ -227,6 +227,7 @@ def render_header():
     """Header del dashboard"""
     st.title("🚀 SF Transit Advanced Dashboard")
     st.markdown("**Monitoreo en Tiempo Real | Predicción de ETA | Sistema de Alertas**")
+
     st.markdown("---")
 
 def render_alerts_panel(df):
@@ -254,7 +255,7 @@ def render_alerts_panel(df):
         )
     
     with col3:
-        low_alerts = len(alerts_df[alerts_df['alert_level'] == 'low'])
+        low_alerts = len(alerts_df[alerts_df['alert_level'] == 'normal'])
         st.metric(
             label="🟢 Alertas Bajas",
             value=low_alerts,
@@ -455,7 +456,9 @@ def render_map_with_alerts(df):
 def render_vehicle_tracker(df):
     """Rastreador de vehículo individual"""
     st.subheader("🔍 Rastreador de Vehículo")
-    
+
+    st.write("Variables consideradas: Hora del día, Día de la semana, Coordenadas, Distancia al centro de la ciudad, Dirección")
+
     vehicles = df['vehicle_id'].unique().tolist()
     selected_vehicle = st.selectbox("Seleccionar vehículo para rastrear:", vehicles)
     
@@ -491,6 +494,8 @@ def render_vehicle_tracker(df):
             else:
                 st.metric("Velocidad Real", "N/A")
         
+        history_df['created_at'] = pd.to_datetime(history_df['created_at']) - pd.Timedelta(hours=5)
+
         # Gráfico de trayectoria
         if len(history_df) > 1:
             fig = px.line_mapbox(
@@ -531,12 +536,14 @@ def render_map_with_kde(df):
         st.warning("No hay datos para mostrar")
         return
 
+    df_latest["inv_speed"] = df_latest["predicted_speed"] * -1
     # Crear mapa con densidad KDE
+    
     fig = px.density_mapbox(
         df_latest,
         lat="latitude",
         lon="longitude",
-        z="predicted_speed",  # se usa como peso
+        z="inv_speed",  # se usa como peso
         radius=15,  # controla el suavizado del KDE
         hover_data=["vehicle_id", "route_id", "agency_id", "predicted_speed", "alert_message"],
         center={"lat": SF_CENTER_LAT, "lon": SF_CENTER_LON},
@@ -565,7 +572,7 @@ def main():
     
     # Cargar datos
     with st.spinner("📡 Cargando datos..."):
-        df = get_realtime_data(hours=0.1)
+        df = get_realtime_data(hours=0.5)
         print(df)
         
         if df.empty:
