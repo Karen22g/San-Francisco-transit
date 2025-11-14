@@ -11,7 +11,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-import psycopg2
+import pg8000
 import joblib
 from math import radians, cos, sin, asin, sqrt
 import warnings
@@ -72,7 +72,7 @@ def haversine(lat1, lon1, lat2, lon2):
 def get_realtime_data(hours=0.5):
     """Obtener datos en tiempo real"""
     try:
-        conn = psycopg2.connect(**DB_CONFIG)
+        conn = pg8000.connect(**DB_CONFIG)
         query = f"""
             SELECT 
                 vehicle_id,
@@ -86,7 +86,8 @@ def get_realtime_data(hours=0.5):
             WHERE created_at > NOW() - INTERVAL '{hours} hours'
             ORDER BY created_at DESC
         """
-        df = pd.read_sql(query, conn)
+        interval_str = f"{hours} hours"
+        df = pd.read_sql(query, conn, params=[interval_str])
         conn.close()
         return df
     except Exception as e:
