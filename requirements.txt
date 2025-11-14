@@ -1,4 +1,5 @@
 # Dependencias del Proyecto de Transporte Público en Tiempo Real
+--prefer-binary
 
 # Base de datos
 psycopg2-binary==2.9.9
