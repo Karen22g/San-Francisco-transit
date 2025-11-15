@@ -58,11 +58,6 @@ def load_model():
         model_path = os.path.join(base_path, "best_model.pkl")
         scaler_path = os.path.join(base_path, "scaler.pkl")
 
-        # Debug en UI
-        st.write("📂 Working dir:", base_path)
-        st.write("🔍 Model path:", model_path)
-        st.write("🔍 Scaler path:", scaler_path)
-
         model = joblib.load(model_path)
         scaler = joblib.load(scaler_path)
 
@@ -114,7 +109,7 @@ def get_realtime_data(hours: 0.5):
 def get_vehicle_history(vehicle_id, hours=1):
     """Obtener historial de un vehículo"""
     try:
-        conn = psycopg2.connect(**DB_CONFIG)
+        conn = pg8000.connect(**DB_CONFIG)
         query = f"""
             SELECT 
                 vehicle_id,
@@ -480,7 +475,7 @@ def render_vehicle_tracker(df):
     selected_vehicle = st.selectbox("Seleccionar vehículo para rastrear:", vehicles)
     
     if st.button("📡 Rastrear"):
-        history_df = get_vehicle_history(selected_vehicle, hours=1)
+        history_df = get_vehicle_history(selected_vehicle, hours=2)
         
         if history_df.empty:
             st.warning("No hay historial disponible")
